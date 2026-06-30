@@ -197,3 +197,115 @@ history_lstm = lstm_model.fit(
     epochs=50, batch_size=16,
     callbacks=[early_stop_lstm], verbose=1  # <-- diganti
 )
+
+# 7. EVALUASI & KOMPARASI
+print("\n" + "=" * 60)
+print("7. EVALUASI & KOMPARASI")
+print("=" * 60)
+
+def evaluate_model(model, X_test_seq, y_test, model_name):
+    y_pred_prob = model.predict(X_test_seq)
+    y_pred = (y_pred_prob > 0.5).astype(int).flatten()
+
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+
+    print(f"\n--- Hasil Evaluasi {model_name} ---")
+    print(f"Accuracy  : {acc:.4f}")
+    print(f"Precision : {prec:.4f}")
+    print(f"Recall    : {rec:.4f}")
+    print(f"F1-Score  : {f1:.4f}")
+    print("\nClassification Report:")
+    print(classification_report(y_test, y_pred, target_names=target_encoder.classes_))
+
+    cm = confusion_matrix(y_test, y_pred)
+    return {"model": model_name, "accuracy": acc, "precision": prec,
+            "recall": rec, "f1": f1, "y_pred": y_pred, "cm": cm}
+
+result_cnn = evaluate_model(cnn_model, X_test_seq, y_test, "CNN")
+result_lstm = evaluate_model(lstm_model, X_test_seq, y_test, "LSTM")
+
+comparison_df = pd.DataFrame([
+    {"Model": "CNN", "Accuracy": result_cnn["accuracy"], "Precision": result_cnn["precision"],
+     "Recall": result_cnn["recall"], "F1-Score": result_cnn["f1"]},
+    {"Model": "LSTM", "Accuracy": result_lstm["accuracy"], "Precision": result_lstm["precision"],
+     "Recall": result_lstm["recall"], "F1-Score": result_lstm["f1"]},
+])
+print("\n=== TABEL PERBANDINGAN CNN vs LSTM ===")
+print(comparison_df.to_string(index=False))
+comparison_df.to_csv("hasil_komparasi_cnn_lstm.csv", index=False)
+
+# Grafik Training Accuracy & Loss 
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+axes[0, 0].plot(history_cnn.history["accuracy"], label="Train Accuracy")
+axes[0, 0].plot(history_cnn.history["val_accuracy"], label="Validation Accuracy")
+axes[0, 0].set_title("CNN - Model Accuracy")
+axes[0, 0].legend()
+
+axes[0, 1].plot(history_cnn.history["loss"], label="Train Loss")
+axes[0, 1].plot(history_cnn.history["val_loss"], label="Validation Loss")
+axes[0, 1].set_title("CNN - Model Loss")
+axes[0, 1].legend()
+
+axes[1, 0].plot(history_lstm.history["accuracy"], label="Train Accuracy")
+axes[1, 0].plot(history_lstm.history["val_accuracy"], label="Validation Accuracy")
+axes[1, 0].set_title("LSTM - Model Accuracy")
+axes[1, 0].legend()
+
+axes[1, 1].plot(history_lstm.history["loss"], label="Train Loss")
+axes[1, 1].plot(history_lstm.history["val_loss"], label="Validation Loss")
+axes[1, 1].set_title("LSTM - Model Loss")
+axes[1, 1].legend()
+
+plt.tight_layout()
+plt.savefig("hasil_training_cnn_lstm.png", dpi=150)
+plt.show()
+
+# Confusion Matrix 
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+sns.heatmap(result_cnn["cm"], annot=True, fmt="d", cmap="Blues",
+            xticklabels=target_encoder.classes_, yticklabels=target_encoder.classes_, ax=axes[0])
+axes[0].set_title("Confusion Matrix - CNN")
+
+sns.heatmap(result_lstm["cm"], annot=True, fmt="d", cmap="Greens",
+            xticklabels=target_encoder.classes_, yticklabels=target_encoder.classes_, ax=axes[1])
+axes[1].set_title("Confusion Matrix - LSTM")
+
+plt.tight_layout()
+plt.savefig("confusion_matrix_cnn_lstm.png", dpi=150)
+plt.show()
+
+# Bar Chart Perbandingan Metrik 
+metrics = ["Accuracy", "Precision", "Recall", "F1-Score"]
+cnn_scores = [result_cnn["accuracy"], result_cnn["precision"], result_cnn["recall"], result_cnn["f1"]]
+lstm_scores = [result_lstm["accuracy"], result_lstm["precision"], result_lstm["recall"], result_lstm["f1"]]
+
+x = np.arange(len(metrics))
+width = 0.35
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.bar(x - width/2, cnn_scores, width, label="CNN")
+ax.bar(x + width/2, lstm_scores, width, label="LSTM")
+ax.set_xticks(x)
+ax.set_xticklabels(metrics)
+ax.set_ylim(0, 1.05)
+ax.set_title("Perbandingan Performa CNN vs LSTM")
+ax.legend()
+
+for i, v in enumerate(cnn_scores):
+    ax.text(i - width/2, v + 0.01, f"{v:.2f}", ha="center")
+for i, v in enumerate(lstm_scores):
+    ax.text(i + width/2, v + 0.01, f"{v:.2f}", ha="center")
+
+plt.tight_layout()
+plt.savefig("perbandingan_metrik_cnn_lstm.png", dpi=150)
+plt.show()
+
+# Simpan model terbaik 
+best_model_name = "CNN" if result_cnn["f1"] >= result_lstm["f1"] else "LSTM"
+best_model = cnn_model if best_model_name == "CNN" else lstm_model
+best_model.save(f"model_terbaik_{best_model_name}.h5")
+
+print(f"\nModel terbaik berdasarkan F1-Score: {best_model_name}")
