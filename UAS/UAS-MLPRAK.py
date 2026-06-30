@@ -1,0 +1,89 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (accuracy_score, precision_score, recall_score,
+                              f1_score, confusion_matrix, classification_report)
+
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import (Conv1D, MaxPooling1D, Flatten, Dense,
+                                      Dropout, LSTM)
+from tensorflow.keras.callbacks import EarlyStopping
+
+SEED = 42
+np.random.seed(SEED)
+tf.random.set_seed(SEED)
+
+
+# 1. INPUT
+print("=" * 60)
+print("1. INPUT")
+print("=" * 60)
+
+df = pd.read_csv("kidney_disease.csv")
+print(f"Shape awal data: {df.shape}")
+print(df.head())
+
+
+# 2. PREPROCESSING
+print("\n" + "=" * 60)
+print("2. PREPROCESSING")
+print("=" * 60)
+
+df = df.drop(columns=["id"])
+
+for col in df.select_dtypes(include="object").columns:
+    df[col] = df[col].astype(str).str.strip().str.replace("\t", "", regex=False)
+    df[col] = df[col].replace({"nan": np.nan, "?": np.nan, "": np.nan})
+
+df["classification"] = df["classification"].replace({"ckd": "ckd", "notckd": "notckd"})
+print("\nDistribusi target setelah dibersihkan:")
+print(df["classification"].value_counts())
+
+categorical_cols = ["rbc", "pc", "pcc", "ba", "htn", "dm", "cad", "appet", "pe", "ane"]
+numerical_cols = [c for c in df.columns if c not in categorical_cols + ["classification"]]
+
+for col in numerical_cols:
+    df[col] = pd.to_numeric(df[col], errors="coerce")
+
+# Cek Missing Value 
+print("\n--- Cek Missing Value per Kolom (sebelum imputasi) ---")
+print(df.isnull().sum())
+
+# Handling Missing Value 
+for col in numerical_cols:
+    df[col] = df[col].fillna(df[col].median())
+for col in categorical_cols:
+    df[col] = df[col].fillna(df[col].mode()[0])
+
+print(f"\nTotal missing value setelah imputasi: {df.isnull().sum().sum()}")
+
+# Deteksi Outlier (Z-score) 
+z_scores = np.abs(stats.zscore(df[numerical_cols]))
+outliers_z = df[(z_scores > 3).any(axis=1)]
+print(f"\n--- Deteksi Outlier (Z-score > 3) ---")
+print(f"Jumlah baris terdeteksi outlier: {outliers_z.shape[0]}")
+print(outliers_z[numerical_cols].head())
+
+# Handling Outlier 
+def cap_outliers_iqr(data, cols):
+    for col in cols:
+        Q1 = data[col].quantile(0.25)
+        Q3 = data[col].quantile(0.75)
+        IQR = Q3 - Q1
+        lower = Q1 - 1.5 * IQR
+        upper = Q3 + 1.5 * IQR
+        data[col] = np.clip(data[col], lower, upper)
+    return data
+
+df = cap_outliers_iqr(df, numerical_cols)
+
+z_scores_after = np.abs(stats.zscore(df[numerical_cols]))
+outliers_after = df[(z_scores_after > 3).any(axis=1)]
+print(f"\nJumlah outlier setelah handling (capping IQR): {outliers_after.shape[0]}")
+
