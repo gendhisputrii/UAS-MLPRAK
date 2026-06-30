@@ -198,7 +198,7 @@ history_lstm = lstm_model.fit(
     callbacks=[early_stop_lstm], verbose=1  # <-- diganti
 )
 
-# 7. EVALUASI & KOMPARASI
+# 6. EVALUASI & KOMPARASI
 print("\n" + "=" * 60)
 print("7. EVALUASI & KOMPARASI")
 print("=" * 60)
@@ -309,3 +309,47 @@ best_model = cnn_model if best_model_name == "CNN" else lstm_model
 best_model.save(f"model_terbaik_{best_model_name}.h5")
 
 print(f"\nModel terbaik berdasarkan F1-Score: {best_model_name}")
+
+# 7. EXPORT UNTUK FLUTTER (TFLite + JSON)
+print("\n" + "=" * 60)
+print("8. EXPORT UNTUK FLUTTER")
+print("=" * 60)
+
+import json
+
+# Convert model terbaik ke TFLite 
+converter = tf.lite.TFLiteConverter.from_keras_model(best_model)
+tflite_model = converter.convert()
+
+with open("model_ckd.tflite", "wb") as f:
+    f.write(tflite_model)
+
+print(f"Model {best_model_name} berhasil dikonversi ke model_ckd.tflite")
+
+# Export parameter StandardScaler ke JSON 
+scaler_params = {
+    "mean": scaler.mean_.tolist(),
+    "scale": scaler.scale_.tolist(),
+    "feature_names": list(X.columns)
+}
+with open("scaler_params.json", "w") as f:
+    json.dump(scaler_params, f, indent=2)
+
+print("Scaler params disimpan ke scaler_params.json")
+
+# Export mapping target (label hasil prediksi)
+target_mapping = {
+    "classes": target_encoder.classes_.tolist()
+}
+with open("target_mapping.json", "w") as f:
+    json.dump(target_mapping, f, indent=2)
+
+# Export mapping kolom kategorikal 
+cat_mappings = {}
+for col, le in label_encoders.items():
+    cat_mappings[col] = dict(zip(le.classes_.tolist(), le.transform(le.classes_).tolist()))
+
+with open("categorical_mappings.json", "w") as f:
+    json.dump(cat_mappings, f, indent=2)
+
+print("\n=== Semua file untuk Flutter berhasil diekspor ===")
