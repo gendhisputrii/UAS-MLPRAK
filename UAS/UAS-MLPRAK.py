@@ -14,6 +14,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import (Conv1D, MaxPooling1D, Flatten, Dense,
                                       Dropout, LSTM)
 from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.preprocessing import StandardScaler
 
 SEED = 42
 np.random.seed(SEED)
@@ -86,4 +87,32 @@ df = cap_outliers_iqr(df, numerical_cols)
 z_scores_after = np.abs(stats.zscore(df[numerical_cols]))
 outliers_after = df[(z_scores_after > 3).any(axis=1)]
 print(f"\nJumlah outlier setelah handling (capping IQR): {outliers_after.shape[0]}")
+
+#3. Transformation
+print("\n" + "=" * 60)
+print("3. TRANSFORMATION")
+print("=" * 60)
+
+#encoding kategorikal
+label_encoders = {}
+for col in categorical_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+target_encoder = LabelEncoder()
+df["classification"] = target_encoder.fit_transform(df["classification"])
+print("\nMapping label target:",
+      dict(zip(target_encoder.classes_, target_encoder.transform(target_encoder.classes_))))
+
+#scaling dengan standardscaler
+X = df.drop(columns=["classification"])
+y = df["classification"].values
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+print("\n--- Hasil Scaling (StandardScaler) ---")
+print(pd.DataFrame(X_scaled, columns=X.columns).head())
+print(f"\nJumlah fitur setelah transformasi: {X_scaled.shape[1]}")
 
