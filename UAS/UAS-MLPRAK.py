@@ -136,3 +136,64 @@ n_features = X_train.shape[1]
 X_train_seq = X_train.reshape(X_train.shape[0], n_features, 1)
 X_val_seq = X_val.reshape(X_val.shape[0], n_features, 1)
 X_test_seq = X_test.reshape(X_test.shape[0], n_features, 1)
+
+#5. Klasifikasi
+#Deep learning 1: CNN
+print("\n" + "=" * 60)
+print(" MODEL DEEP LEARNING 1: CNN")
+print("=" * 60)
+
+def build_cnn(input_shape):
+    model = Sequential([
+        Conv1D(filters=32, kernel_size=3, activation="relu", input_shape=input_shape),
+        MaxPooling1D(pool_size=2),
+        Conv1D(filters=64, kernel_size=3, activation="relu", padding="same"),
+        MaxPooling1D(pool_size=2),
+        Flatten(),
+        Dense(64, activation="relu"),
+        Dropout(0.3),
+        Dense(1, activation="sigmoid")
+    ])
+    model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+    return model
+
+cnn_model = build_cnn((n_features, 1))
+cnn_model.summary()
+
+early_stop_cnn = EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)  # <-- diganti nama variabel
+
+history_cnn = cnn_model.fit(
+    X_train_seq, y_train,
+    validation_data=(X_val_seq, y_val),
+    epochs=50, batch_size=16,
+    callbacks=[early_stop_cnn], verbose=1  # <-- diganti
+)
+
+#Deep learning 2: LSTM
+print("\n" + "=" * 60)
+print("MODEL DEEP LEARNING 2: LSTM")
+print("=" * 60)
+
+def build_lstm(input_shape):
+    model = Sequential([
+        LSTM(64, return_sequences=True, input_shape=input_shape),
+        Dropout(0.3),
+        LSTM(32),
+        Dropout(0.3),
+        Dense(32, activation="relu"),
+        Dense(1, activation="sigmoid")
+    ])
+    model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+    return model
+
+lstm_model = build_lstm((n_features, 1))
+lstm_model.summary()
+
+early_stop_lstm = EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)  # <-- ditambahkan baru
+
+history_lstm = lstm_model.fit(
+    X_train_seq, y_train,
+    validation_data=(X_val_seq, y_val),
+    epochs=50, batch_size=16,
+    callbacks=[early_stop_lstm], verbose=1  # <-- diganti
+)
