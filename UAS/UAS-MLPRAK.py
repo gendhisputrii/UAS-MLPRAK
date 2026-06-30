@@ -116,3 +116,23 @@ print("\n--- Hasil Scaling (StandardScaler) ---")
 print(pd.DataFrame(X_scaled, columns=X.columns).head())
 print(f"\nJumlah fitur setelah transformasi: {X_scaled.shape[1]}")
 
+# 4. DATA SPLITTING 
+print("\n" + "=" * 60)
+print("4. DATA SPLITTING")
+print("=" * 60)
+
+X_train, X_temp, y_train, y_temp = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=SEED, stratify=y
+)
+X_val, X_test, y_val, y_test = train_test_split(
+    X_temp, y_temp, test_size=0.5, random_state=SEED, stratify=y_temp
+)
+
+print(f"Data Training   : {X_train.shape[0]} sampel")
+print(f"Data Validation : {X_val.shape[0]} sampel")
+print(f"Data Testing    : {X_test.shape[0]} sampel")
+
+n_features = X_train.shape[1]
+X_train_seq = X_train.reshape(X_train.shape[0], n_features, 1)
+X_val_seq = X_val.reshape(X_val.shape[0], n_features, 1)
+X_test_seq = X_test.reshape(X_test.shape[0], n_features, 1)
